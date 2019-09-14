@@ -12,17 +12,17 @@ members = ['runtime']
 vergen = '3'
 
 [[bin]]
-name = 'wx-node'
+name = 'wx-parking'
 path = 'src/main.rs'
 
 [dependencies]
 derive_more = '0.14.0'
-exit-future = '0.1'
 futures = '0.1'
 log = '0.4'
-parking_lot = '0.9.0'
 tokio = '0.1'
-trie-root = '0.15.2'
+# exit-future = '0.1'
+# parking_lot = '0.9.0'
+# trie-root = '0.15.2'
 
 [dependencies.babe]
 git = 'https://github.com/paritytech/substrate.git'
