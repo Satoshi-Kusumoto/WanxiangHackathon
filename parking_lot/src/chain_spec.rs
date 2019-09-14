@@ -3,7 +3,7 @@ use grandpa_primitives::AuthorityId as GrandpaId;
 use primitives::{Pair, Public};
 use substrate_service;
 use wx_node_runtime::{
-    AccountId, BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig, IndicesConfig, ParkingConfig, SudoConfig,
+    AccountId, BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig, IndicesConfig, SudoConfig,
     SystemConfig, WASM_BINARY,
 };
 
@@ -144,42 +144,6 @@ fn testnet_genesis(
         }),
         grandpa: Some(GrandpaConfig {
             authorities: initial_authorities.iter().map(|x| (x.2.clone(), 1)).collect(),
-        }),
-        parking: Some(ParkingConfig {
-            parking_lots: vec![
-                (get_from_seed::<AccountId>("Alice"),
-                 3,
-                 3,
-                 5,
-                 5,
-                 100,
-                 312475,
-                 1214895),
-                (get_from_seed::<AccountId>("Bob"),
-                 20,
-                 20,
-                 10,
-                 10,
-                 500,
-                 312465,
-                 1214863),
-                (get_from_seed::<AccountId>("Charlie"),
-                 50,
-                 50,
-                 15,
-                 15,
-                 1000,
-                 312475,
-                 1214895),
-                (get_from_seed::<AccountId>("Dave"),
-                 6,
-                 6,
-                 20,
-                 20,
-                 1500,
-                 312495,
-                 1214795),
-            ],
         }),
     }
 }
