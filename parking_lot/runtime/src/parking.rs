@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 use log;
 use support::{decl_event, decl_module, decl_storage, dispatch::Result, traits::Currency, StorageValue};
 use system::ensure_signed;
@@ -10,10 +12,27 @@ pub trait Trait: timestamp::Trait {
     type Currency: Currency<Self::AccountId>;
 }
 
+type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance;
+
+
+decl_event!(
+    pub enum Event<T>
+    where
+        AccountId = <T as system::Trait>::AccountId,
+    {
+        SomethingStored(u32, AccountId),
+        NewParkingLot(AccountId),
+        Entering(AccountId),
+        Leaving(AccountId),
+    }
+);
+
+
 decl_storage! {
     trait Store for Module<T: Trait> as Parking {
         Something get(something): Option<u32>;
     }
+    
 }
 
 decl_module! {
@@ -23,9 +42,6 @@ decl_module! {
         // this is needed only if you are using events in your module
         fn deposit_event() = default;
 
-        // Just a dummy entry point.
-        // function that can be called by the external world as an extrinsics call
-        // takes a parameter of the type `AccountId`, stores it and emits an event
         pub fn do_something(origin, something: u32) -> Result {
             let who = ensure_signed(origin)?;
 
@@ -36,17 +52,22 @@ decl_module! {
             Self::deposit_event(RawEvent::SomethingStored(something, who));
             Ok(())
         }
+
+        pub fn new_parking_lot(origin, latitude: i32, longitude: i32, capacity: u32, min_price: BalanceOf<T>, max_price: BalanceOf<T>) -> Result {
+            unimplemented!()
+        }
+        
+        pub fn entering(origin, parking_lot_hash: T::Hash) -> Result {
+            unimplemented!()
+        }
+
+        pub fn leaving(origin) -> Result {
+            unimplemented!()
+        }
+
     }
 }
 
-decl_event!(
-    pub enum Event<T>
-    where
-        AccountId = <T as system::Trait>::AccountId,
-    {
-        SomethingStored(u32, AccountId),
-    }
-);
 
 /// tests for this module
 #[cfg(test)]
@@ -87,7 +108,7 @@ mod tests {
     impl Trait for Test {
         type Event = ();
     }
-    type TemplateModule = Module<Test>;
+    type Parking = Module<Test>;
 
     // This function basically just builds a genesis storage key/value store according to
     // our desired mockup.
@@ -100,13 +121,27 @@ mod tests {
     }
 
     #[test]
-    fn it_works_for_default_value() {
+    fn test_new_parking_lot() {
         with_externalities(&mut new_test_ext(), || {
-            // Just a dummy test for the dummy funtion `do_something`
-            // calling the `do_something` function with a value 42
-            assert_ok!(TemplateModule::do_something(Origin::signed(1), 42));
-            // asserting that the stored value is equal to what we stored
-            assert_eq!(TemplateModule::something(), Some(42));
+            assert_ok!(Parking::do_something(Origin::signed(1), 42));
+            assert_eq!(Parking::something(), Some(42));
         });
     }
+    
+    #[test]
+    fn test_entering() {
+        with_externalities(&mut new_test_ext(), || {
+            assert_ok!(Parking::do_something(Origin::signed(1), 42));
+            assert_eq!(Parking::something(), Some(42));
+        });
+    }
+
+    #[test]
+    fn test_leaving() {
+        with_externalities(&mut new_test_ext(), || {
+            assert_ok!(Parking::do_something(Origin::signed(1), 42));
+            assert_eq!(Parking::something(), Some(42));
+        });
+    }
+
 }
