@@ -2,10 +2,16 @@
 #![allow(unused_variables)]
 
 use codec::{Decode, Encode};
-use log;
 use rstd::{convert::TryInto, prelude::*, result};
-use support::{decl_event, decl_module, decl_storage, dispatch::Result, traits::Currency, StorageValue};
+use sr_primitives::traits::{CheckedDiv, CheckedSub, Hash};
+use support::{
+    decl_event, decl_module, decl_storage, dispatch::Result, ensure, traits::Currency, StorageMap, StorageValue,
+};
+
+use log;
+use rstd::convert::Into;
 use system::ensure_signed;
+
 
 /// The module's configuration trait.
 pub trait Trait: timestamp::Trait {
@@ -191,23 +197,137 @@ decl_module! {
             Ok(())
         }
 
+        /// User entering by parking lot hash
         pub fn entering(origin, parking_lot_hash: T::Hash) -> Result {
-            unimplemented!()
+            let user = ensure_signed(origin)?;
+            ensure!(!<UserParkingInfo<T>>::exists(user.clone()), "User already has entered a parking lot");
+
+            let info_hash = <system::Module<T>>::random_seed();
+            // record the entering time
+            let now = <timestamp::Module<T>>::get();
+
+            let parking_info = ParkingInfo::<T>::new(user.clone(), parking_lot_hash, info_hash, now);
+            let mut parking_lot = Self::parking_lots(parking_lot_hash).ok_or("The parking lot has not existed")?;
+            if parking_lot.remain <= 0 {
+                return Err("The parking lot has no more position");
+            }
+
+            let old_time = Self::parking_lot_last_time(parking_lot_hash).expect("It must be having data. Qed");
+            <ParkingLotLastTime<T>>::insert(parking_lot_hash, now);
+
+            // no one in parking lot, we should init the time and no need to refresh fees
+            if parking_lot.remain != parking_lot.capacity {
+                Self::refresh_all_fee(&parking_lot, parking_lot_hash, now, old_time)?;
+            }
+
+            <ParkingLotLastTime<T>>::insert(parking_lot_hash, now);
+            let mut accs = Self::current_parking_accounts(parking_lot_hash);
+            accs.push(user.clone());
+            parking_lot.remain -= 1;
+
+            // change states
+            <CurrentParkingAccounts<T>>::insert(parking_lot_hash, accs);
+            <ParkingLots<T>>::insert(parking_lot_hash, parking_lot);
+            <UserParkingInfo<T>>::insert(user.clone(), parking_info.clone());
+
+            Self::deposit_event(RawEvent::Entering(<timestamp::Module<T>>::get(), parking_info));
+            Ok(())
         }
 
+        /// User leaving
         pub fn leaving(origin) -> Result {
-            unimplemented!()
+            let user = ensure_signed(origin)?;
+            let parking_info = Self::user_parking_info(user.clone()).ok_or("User has not entered a parking lot")?;
+            let parking_lot_hash = parking_info.parking_lot_hash.clone();
+            let mut parking_lot = Self::parking_lots(parking_lot_hash).expect("User must has the parking info. Qed");
+            let owner = parking_lot.owner.clone();
+            let accs: Vec<_> = Self::current_parking_accounts(parking_lot_hash);
+            let mut new_accs = vec![];
+            for acc in accs {
+                if acc != user {
+                    new_accs.push(acc);
+                }
+            }
+
+            // update fees first, and then pay the fee and remove parking info
+            // change states
+            Self::pay_parking_fee(user.clone(), &parking_lot)?;
+            parking_lot.remain += 1;
+            <CurrentParkingAccounts<T>>::insert(parking_lot_hash, new_accs);
+            <ParkingLots<T>>::insert(parking_lot_hash, parking_lot.clone());
+            <UserParkingInfo<T>>::remove(user.clone());
+            Self::deposit_event(RawEvent::Leaving(<timestamp::Module<T>>::get(), user, owner, parking_info));
+            Ok(())
         }
 
     }
 }
 
 impl<T: Trait> Module<T> {
+
     fn _new_parking_lot(owner: T::AccountId, parking: ParkingLot<T>) -> Result {
-        unimplemented!()
+        let count = Self::owner_parking_lots_count(owner.clone());
+        let all = Self::all_parking_lots_count();
+
+        let parking_lot_hash =
+            (<system::Module<T>>::random_seed(), &owner, count, all).using_encoded(<T as system::Trait>::Hashing::hash);
+
+        let now = <timestamp::Module<T>>::get();
+
+        <ParkingLots<T>>::insert(parking_lot_hash, parking.clone());
+        <ParkingLotsByIndex<T>>::insert(all, parking_lot_hash);
+        <ParkingLotLastTime<T>>::insert(parking_lot_hash, now);
+        <OwnerParkingLotsArray<T>>::insert((owner.clone(), count), parking_lot_hash);
+        <OwnerParkingLotsCount<T>>::insert(&owner, count + 1);
+        AllParkingLotsCount::put(all + 1);
+        Ok(())
     }
+
+
+    /// Pay parking fee when user leaving
     fn pay_parking_fee(user: T::AccountId, parking_lot: &ParkingLot<T>) -> Result {
-        unimplemented!()
+        let parking_info = Self::user_parking_info(user.clone()).ok_or("User must be in the parking lot")?;
+        ensure!(parking_info.user_id == user, "User must be in the parking lot");
+
+        let owner = parking_lot.owner.clone();
+        let now = <timestamp::Module<T>>::get();
+        let parking_lot_hash = parking_info.parking_lot_hash.clone();
+        let old_time = parking_info.current_time.clone();
+        Self::refresh_all_fee(parking_lot, parking_lot_hash, now, old_time)?;
+        // Recompute all fees before paying
+        let new_parking_info = Self::user_parking_info(user.clone()).expect("User must be existed. Qed");
+        if user == owner {
+            Ok(())
+        } else {
+            T::Currency::transfer(&user, &owner, new_parking_info.current_fee.clone())
+        }
+    }
+
+    /// Recompute all parking fees and current price for current parking lot
+    fn refresh_all_fee(
+        parking_lot: &ParkingLot<T>,
+        parking_lot_hash: T::Hash,
+        new_time: T::Moment,
+        old_time: T::Moment,
+    ) -> Result {
+        let mut parking_lot = parking_lot.clone();
+        let (new_fee, current_price) = parking_lot.compute_new_fee(new_time, old_time)?;
+        let accs: Vec<_> = Self::current_parking_accounts(parking_lot_hash);
+        // refresh current price for parking lot
+        parking_lot.current_price = current_price;
+        <ParkingLots<T>>::remove(parking_lot_hash);
+        <ParkingLots<T>>::insert(parking_lot_hash, parking_lot);
+
+        // refresh all users' fee
+        for acc in accs {
+            let mut parking_info = Self::user_parking_info(acc.clone()).ok_or("User not exists")?;
+            parking_info.current_time = new_time;
+            parking_info.current_fee += new_fee;
+            <UserParkingInfo<T>>::remove(acc.clone());
+            <UserParkingInfo<T>>::insert(acc, parking_info);
+        }
+
+        Ok(())
     }
 }
 
