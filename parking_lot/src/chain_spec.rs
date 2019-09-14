@@ -3,8 +3,8 @@ use grandpa_primitives::AuthorityId as GrandpaId;
 use primitives::{Pair, Public};
 use substrate_service;
 use wx_node_runtime::{
-    AccountId, BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig, IndicesConfig, SudoConfig,
-    SystemConfig, WASM_BINARY,
+    AccountId, BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig, IndicesConfig, SudoConfig, SystemConfig,
+    WASM_BINARY,
 };
 
 // Note this is the URL for the telemetry server

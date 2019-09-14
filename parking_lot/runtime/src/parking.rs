@@ -51,6 +51,61 @@ impl<T: Trait> ParkingLot<T> {
             longitude,
         }
     }
+
+    pub fn compute_new_fee(
+        &self,
+        new_time: T::Moment,
+        old_time: T::Moment,
+    ) -> result::Result<(BalanceOf<T>, BalanceOf<T>), &'static str> {
+        let capacity = self.capacity as u64;
+        let remain = self.remain as u64;
+        let current_num = capacity
+            .checked_sub(remain)
+            .ok_or("Remained num greater than capacity")?;
+        let diff_time = new_time
+            .checked_sub(&old_time)
+            .ok_or("current time must greater than exiting time")?
+            .checked_div(&to_moment::<T>(1000)?)
+            .ok_or("Div diff time overflow")?;
+
+        let diff_time = TryInto::<u64>::try_into(diff_time).map_err(|_| "Time diff overflow")?;
+        let diff_price = self
+            .max_price
+            .checked_sub(&self.min_price)
+            .ok_or("Max price must be greater than min price")?;
+
+        let diff_price = TryInto::<u64>::try_into(diff_price).map_err(|_| "Price diff overflow")?;
+        let min_price = TryInto::<u64>::try_into(self.min_price).map_err(|_| "Min price overflow")?;
+
+        let current_price = current_num
+            .checked_mul(diff_price)
+            .ok_or("Mul overflow")?
+            .checked_div(capacity)
+            .ok_or("Div overflow")?
+            .checked_add(min_price)
+            .ok_or("Add overflow")?;
+
+        let fee = diff_time * current_price;
+
+        log::info!(
+            "end compute new fee\n fee: {}, current_price: {}, diff time: {}s diff price: {}\n\n",
+            fee,
+            current_price,
+            diff_time,
+            diff_price
+        );
+
+        let fee = fee.try_into().map_err(|_| "Fee overflow")?;
+        Ok((fee, current_price.try_into().map_err(|_| "Current price overflow")?))
+    }
+}
+
+fn to_balance<T: Trait>(val: u128) -> result::Result<BalanceOf<T>, &'static str> {
+    val.try_into().map_err(|_| "Convert to Balance type overflow")
+}
+
+fn to_moment<T: Trait>(val: u64) -> result::Result<T::Moment, &'static str> {
+    val.try_into().map_err(|_| "Convert to Moment type overflow")
 }
 
 /// ParkingInfo stores parking info of user
@@ -125,8 +180,15 @@ decl_module! {
         // this is needed only if you are using events in your module
         fn deposit_event() = default;
 
+        /// Create a new parking lot
         pub fn new_parking_lot(origin, latitude: i32, longitude: i32, capacity: u32, min_price: BalanceOf<T>, max_price: BalanceOf<T>) -> Result {
-            unimplemented!()
+            let owner = ensure_signed(origin)?;
+            // ensure!(name.len() < 100, "Parking Lot name cannot be more than 100 bytes");
+            let parking = ParkingLot::<T>::new(owner.clone(), latitude, longitude, capacity, min_price, max_price);
+
+            Self::_new_parking_lot(owner, parking.clone())?;
+            Self::deposit_event(RawEvent::NewParkingLot(<timestamp::Module<T>>::get(), parking));
+            Ok(())
         }
 
         pub fn entering(origin, parking_lot_hash: T::Hash) -> Result {
@@ -140,7 +202,14 @@ decl_module! {
     }
 }
 
-impl<T: Trait> Module<T> {}
+impl<T: Trait> Module<T> {
+    fn _new_parking_lot(owner: T::AccountId, parking: ParkingLot<T>) -> Result {
+        unimplemented!()
+    }
+    fn pay_parking_fee(user: T::AccountId, parking_lot: &ParkingLot<T>) -> Result {
+        unimplemented!()
+    }
+}
 
 /// tests for this module
 #[cfg(test)]
