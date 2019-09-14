@@ -1,12 +1,11 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
+use codec::{Decode, Encode};
+use log;
+use rstd::{convert::TryInto, prelude::*, result};
 use support::{decl_event, decl_module, decl_storage, dispatch::Result, traits::Currency, StorageValue};
 use system::ensure_signed;
-use codec::{Encode, Decode};
-use rstd::{convert::TryInto, prelude::*, result};
-use log;
-
 
 /// The module's configuration trait.
 pub trait Trait: timestamp::Trait {
@@ -52,7 +51,6 @@ impl<T: Trait> ParkingLot<T> {
             longitude,
         }
     }
-
 }
 
 /// ParkingInfo stores parking info of user
@@ -67,7 +65,6 @@ pub struct ParkingInfo<T: Trait> {
     pub current_fee: BalanceOf<T>,
 }
 
-
 impl<T: Trait> ParkingInfo<T> {
     pub fn new(user_id: T::AccountId, parking_lot_hash: T::Hash, info_hash: T::Hash, enter_time: T::Moment) -> Self {
         Self {
@@ -80,7 +77,6 @@ impl<T: Trait> ParkingInfo<T> {
         }
     }
 }
-
 
 decl_event!(
     pub enum Event<T>
@@ -99,7 +95,6 @@ decl_event!(
         Leaving(Moment, AccountId, AccountId, LeavingInfo),
     }
 );
-
 
 decl_storage! {
     trait Store for Module<T: Trait> as Parking {
@@ -120,7 +115,7 @@ decl_storage! {
         /// Parking info of current user
         UserParkingInfo get(user_parking_info): map T::AccountId => Option<ParkingInfo<T>>;
     }
-    
+
 }
 
 decl_module! {
@@ -133,7 +128,7 @@ decl_module! {
         pub fn new_parking_lot(origin, latitude: i32, longitude: i32, capacity: u32, min_price: BalanceOf<T>, max_price: BalanceOf<T>) -> Result {
             unimplemented!()
         }
-        
+
         pub fn entering(origin, parking_lot_hash: T::Hash) -> Result {
             unimplemented!()
         }
@@ -145,10 +140,7 @@ decl_module! {
     }
 }
 
-
-impl <T: Trait> Module<T> {
-
-}
+impl<T: Trait> Module<T> {}
 
 /// tests for this module
 #[cfg(test)]
@@ -181,7 +173,7 @@ mod tests {
         pub const MaximumBlockLength: u32 = 2 * 1024;
         pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
     }
-    
+
     impl system::Trait for Test {
         type Origin = Origin;
         type Call = ();
@@ -240,34 +232,27 @@ mod tests {
         type Currency = balances::Module<Test>;
     }
 
-
     type Parking = Module<Test>;
 
     // This function basically just builds a genesis storage key/value store according to
     // our desired mockup.
     fn new_test_ext() -> runtime_io::TestExternalities<Blake2Hasher> {
-        system::GenesisConfig::default()
-            .build_storage::<Test>()
-            .unwrap()
-            .into()
+        system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
     }
 
     #[test]
     fn test_new_parking_lot() {
-        with_externalities(&mut new_test_ext(), || {
-        });
+        with_externalities(&mut new_test_ext(), || {});
     }
-    
+
     #[test]
     fn test_entering() {
-        with_externalities(&mut new_test_ext(), || {
-        });
+        with_externalities(&mut new_test_ext(), || {});
     }
 
     #[test]
     fn test_leaving() {
-        with_externalities(&mut new_test_ext(), || {
-        });
+        with_externalities(&mut new_test_ext(), || {});
     }
 
 }
