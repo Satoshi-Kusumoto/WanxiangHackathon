@@ -177,6 +177,26 @@ decl_storage! {
         UserParkingInfo get(user_parking_info): map T::AccountId => Option<ParkingInfo<T>>;
     }
 
+    add_extra_genesis {
+        config(parking_lots): Vec<(T::AccountId, u32, u32, BalanceOf<T>, BalanceOf<T>, BalanceOf<T>, i32, i32)>;
+
+        build(|config: &GenesisConfig<T>| {
+            for parking_lot in config.parking_lots.iter() {
+                let account = parking_lot.0.clone();
+                let parking_lot = ParkingLot {
+                    owner: parking_lot.0.clone(),
+                    remain: parking_lot.1.clone(),
+                    capacity: parking_lot.2.clone(),
+                    current_price: parking_lot.3.clone(),
+                    min_price: parking_lot.4.clone(),
+                    max_price: parking_lot.5.clone(),
+                    latitude: parking_lot.6.clone(),
+                    longitude: parking_lot.7.clone(),
+                };
+                <Module<T>>::_new_parking_lot(account, parking_lot).expect("Cannot be failed");
+            }
+        })
+    }
 }
 
 decl_module! {
@@ -425,23 +445,73 @@ mod tests {
 
     // This function basically just builds a genesis storage key/value store according to
     // our desired mockup.
-    fn new_test_ext() -> runtime_io::TestExternalities<Blake2Hasher> {
-        system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
+    fn new_test_ext() -> TestExternalities<Blake2Hasher> {
+        let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
+        GenesisConfig::<Test>::default().assimilate_storage(&mut t).unwrap();
+        // or
+        // t.0.extend(GenesisConfig::<Test>::default().build_storage().unwrap().0);
+
+        GenesisConfig::<Test> {
+            parking_lots: vec![(0, 10, 10, 10, 10, 100, 60, 60), (1, 100, 1, 100, 100, 100, 61, 61)],
+        }
+        .assimilate_storage(&mut t)
+        .unwrap();
+        t.into()
     }
 
     #[test]
     fn test_new_parking_lot() {
-        with_externalities(&mut new_test_ext(), || {});
+        with_externalities(&mut new_test_ext(), || {
+            let user = 0;
+            assert_eq!(Parking::all_parking_lots_count(), 2);
+            assert_ok!(Parking::new_parking_lot(Origin::signed(user), 50, 50, 100, 50, 100,));
+            assert_eq!(Parking::all_parking_lots_count(), 3);
+            assert_eq!(Parking::owner_parking_lots_count(user), 2);
+            assert_eq!(Parking::owner_parking_lots_count(1), 1);
+        })
     }
 
     #[test]
-    fn test_entering() {
-        with_externalities(&mut new_test_ext(), || {});
+    fn test_entering_and_leving() {
+        with_externalities(&mut new_test_ext(), || {
+            let user = 1;
+            assert_eq!(Parking::all_parking_lots_count(), 2);
+
+            let parking_lot_hash = Parking::owner_parking_lots_array((0, 0));
+            assert_eq!(Parking::parking_lots_by_index(0), parking_lot_hash);
+            assert_ok!(Parking::entering(Origin::signed(user), parking_lot_hash.clone()));
+
+            let parking_info = Parking::user_parking_info(user).unwrap();
+            assert_eq!(parking_info.user_id, user);
+            assert_eq!(parking_info.current_fee, 0);
+            assert_eq!(parking_info.current_time.clone(), parking_info.enter_time.clone());
+            assert_err!(
+                Parking::entering(Origin::signed(user), parking_lot_hash.clone()),
+                "User already has entered a parking lot"
+            );
+            assert_ok!(Parking::leaving(Origin::signed(user)));
+
+            assert_ok!(Parking::entering(Origin::signed(user), parking_lot_hash.clone()));
+            let parking_info = Parking::user_parking_info(user).unwrap();
+            assert_eq!(parking_info.user_id, user);
+            assert_eq!(parking_info.current_fee, 0);
+            assert_eq!(parking_info.current_time.clone(), parking_info.enter_time.clone());
+            assert_err!(
+                Parking::entering(Origin::signed(user), parking_lot_hash.clone()),
+                "User already has entered a parking lot"
+            );
+            assert_ok!(Parking::leaving(Origin::signed(user)));
+        })
     }
 
     #[test]
-    fn test_leaving() {
-        with_externalities(&mut new_test_ext(), || {});
+    fn test_leving() {
+        with_externalities(&mut new_test_ext(), || {
+            let user = 0;
+            assert_err!(
+                Parking::leaving(Origin::signed(user)),
+                "User has not entered a parking lot"
+            );
+        })
     }
-
 }

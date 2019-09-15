@@ -3,8 +3,8 @@ use grandpa_primitives::AuthorityId as GrandpaId;
 use primitives::{Pair, Public};
 use substrate_service;
 use wx_node_runtime::{
-    AccountId, BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig, IndicesConfig, SudoConfig, SystemConfig,
-    WASM_BINARY,
+    AccountId, BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig, IndicesConfig, ParkingConfig, SudoConfig,
+    SystemConfig, WASM_BINARY,
 };
 
 // Note this is the URL for the telemetry server
@@ -59,6 +59,12 @@ impl Alternative {
                             get_from_seed::<AccountId>("Dave"),
                             get_from_seed::<AccountId>("Eve"),
                             get_from_seed::<AccountId>("Ferdie"),
+                            get_from_seed::<AccountId>("Sun"),
+                            get_from_seed::<AccountId>("Cao"),
+                            get_from_seed::<AccountId>("Hao"),
+                            get_from_seed::<AccountId>("Wu"),
+                            get_from_seed::<AccountId>("Felicia"),
+                            get_from_seed::<AccountId>("Lester"),
                             get_from_seed::<AccountId>("Alice//stash"),
                             get_from_seed::<AccountId>("Bob//stash"),
                             get_from_seed::<AccountId>("Charlie//stash"),
@@ -144,6 +150,42 @@ fn testnet_genesis(
         }),
         grandpa: Some(GrandpaConfig {
             authorities: initial_authorities.iter().map(|x| (x.2.clone(), 1)).collect(),
+        }),
+        parking: Some(ParkingConfig {
+            parking_lots: vec![
+                (get_from_seed::<AccountId>("Alice"),
+                 3,
+                 3,
+                 5,
+                 5,
+                 100,
+                 31247538,
+                 121489559),
+                (get_from_seed::<AccountId>("Alice"),
+                 20,
+                 20,
+                 10,
+                 10,
+                 500,
+                 31247538,
+                 121479559),
+                (get_from_seed::<AccountId>("Alice"),
+                 50,
+                 50,
+                 15,
+                 15,
+                 1000,
+                 31246538,
+                 121486359),
+                (get_from_seed::<AccountId>("Alice"),
+                 6,
+                 6,
+                 20,
+                 20,
+                 1500,
+                 31249538,
+                 121479559),
+            ],
         }),
     }
 }
