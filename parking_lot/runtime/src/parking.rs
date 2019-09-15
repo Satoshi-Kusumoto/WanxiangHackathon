@@ -335,7 +335,6 @@ impl<T: Trait> Module<T> {
         let accs: Vec<_> = Self::current_parking_accounts(parking_lot_hash);
         // refresh current price for parking lot
         parking_lot.current_price = current_price;
-        <ParkingLots<T>>::remove(parking_lot_hash);
         <ParkingLots<T>>::insert(parking_lot_hash, parking_lot);
 
         // refresh all users' fee
@@ -343,7 +342,6 @@ impl<T: Trait> Module<T> {
             let mut parking_info = Self::user_parking_info(acc.clone()).ok_or("User not exists")?;
             parking_info.current_time = new_time;
             parking_info.current_fee += new_fee;
-            <UserParkingInfo<T>>::remove(acc.clone());
             <UserParkingInfo<T>>::insert(acc, parking_info);
         }
 
