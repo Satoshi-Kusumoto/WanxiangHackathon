@@ -206,7 +206,7 @@ impl indices::Trait for Runtime {
 }
 
 parameter_types! {
-    pub const MinimumPeriod: u64 = 3000;
+    pub const MinimumPeriod: u64 = 5000;
 }
 
 impl timestamp::Trait for Runtime {

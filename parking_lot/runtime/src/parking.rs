@@ -209,7 +209,7 @@ decl_module! {
         /// Create a new parking lot
         pub fn new_parking_lot(origin, latitude: i32, longitude: i32, capacity: u32, min_price: BalanceOf<T>, max_price: BalanceOf<T>) -> Result {
             let owner = ensure_signed(origin)?;
-            // ensure!(name.len() < 100, "Parking Lot name cannot be more than 100 bytes");
+            ensure!(min_price <= max_price, "min price must equal and less than max price");
             let parking = ParkingLot::<T>::new(owner.clone(), latitude, longitude, capacity, min_price, max_price);
 
             Self::_new_parking_lot(owner, parking.clone())?;
